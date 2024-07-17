@@ -79,4 +79,9 @@ contract fund {
         (bool sent, ) = payable(owner).call{value: address(this).balance}("");
         require(sent, "Transaction failed");
     }
+
+    function returnString() public pure returns(string memory){
+        return "This is smart contract";
+    }
+
 }
