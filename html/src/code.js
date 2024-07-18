@@ -15,6 +15,11 @@ let amountInput = document.getElementById("amount");
 let userName = document.getElementById("user_Name")
 let indexInput = document.getElementById("funders");
 let Eth_value;
+let displayingArea = document.getElementById("display-area")
+let displayDiv = document.createElement("div") 
+let fId = document.createElement("div")
+let fName = document.createElement("div")
+let fAmount = document.createElement("div")
 
 
 let Eth_Amount = amountInput.addEventListener("change", (e) => {
@@ -29,6 +34,7 @@ let transferBtn = document.getElementById("transfer");
 let contractBtn = document.getElementById("getcontract");
 let balanceBtn = document.getElementById("getbalance");
 let ownerBtn = document.getElementById("getowner");
+
 
 //provider :- that let you connect with blockchain for read only transaction
 //signer :- that let you perform executable transaction on the blockchaion
@@ -138,7 +144,19 @@ const getFunders = async () => {
     console.log("Name is :- ",data[0])
     console.log("Amount is  :- ",ethAmount, " ETH")
     console.log("Contributor ID is :- ",data[2])
+    
+    fId.innerHTML = data[0]
+    fName.innerHTML = data[1]
+    fAmount = data[2]
+
+    displayDiv.appendChild(fId)
+    displayDiv.appendChild(fName)
+    displayDiv.appendChild(fAmount)
+    displayDiv.setAttribute("class","row")
+    displayingArea.appendChild(displayDiv)
+ 
   }
+
 };
 
 
