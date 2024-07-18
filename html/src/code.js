@@ -3,29 +3,33 @@ const { ContractAbi, bytecode } = require("./abi.js");
 const { BlockTags, providers, eth } = require("web3");
 const { sign, string } = require("three/examples/jsm/nodes/Nodes.js");
 
-const DP = new ethers.JsonRpcProvider("http://127.0.0.1:8545"); // Correct port for local Anvil chain
 let signers;
-let contract;
-let deployedContract;
 let ContractAddress;
 let provider;
 let interface = new ethers.Interface(ContractAbi);
+
 // HTML elements
 let amountInput = document.getElementById("amount");
-let userName = document.getElementById("user_Name")
+let userName = document.getElementById("user_Name");
 let indexInput = document.getElementById("funders");
 let Eth_value;
-let displayingArea = document.getElementById("display-area")
-let displayDiv = document.createElement("div") 
-let fId = document.createElement("div")
-let fName = document.createElement("div")
-let fAmount = document.createElement("div")
+let displayingArea = document.getElementById("display-area");
+let displayDiv = document.createElement("div");
+let fId = document.createElement("p");
+let fName = document.createElement("div");
+let fAmount = document.createElement("h3");
+let funderIndex;
 
-
-let Eth_Amount = amountInput.addEventListener("change", (e) => {
+amountInput.addEventListener("change", (e) => {
   Eth_value = e.target.value;
   console.log(Eth_value);
 });
+
+indexInput.addEventListener("change", (e) => {
+  funderIndex = Number(e.target.value);
+});
+
+// Buttons
 
 let connectBtn = document.getElementById("connect-button");
 let fundBtn = document.getElementById("fund-button");
@@ -36,27 +40,21 @@ let balanceBtn = document.getElementById("getbalance");
 let ownerBtn = document.getElementById("getowner");
 
 
-//provider :- that let you connect with blockchain for read only transaction
-//signer :- that let you perform executable transaction on the blockchaion
-
-// connect to the provider using metamask
-
-//provider is useful for signing the transactions
-
 let finalName;
-userName.onchange = ((e)=>{
-  finalName = e.target.value
-})
+userName.onchange = (e) => {
+  finalName = e.target.value;
+};
 
 
-// const displayName = () => {
-//   console.log(finalName)
-// }
+
+
+// Function
 
 const connect = async () => {
   if (!provider) {
     provider = new ethers.BrowserProvider(window.ethereum);
     signers = await provider.send("eth_accounts");
+    console.log("Addresses within wallet are :- ");
     console.log(signers);
   }
 };
@@ -65,9 +63,9 @@ const deployContract = async () => {
   if (provider) {
     let signer = await provider.getSigner();
     let signerAddress = await signer.getAddress();
-    console.log(signerAddress);
+    console.log("Deployer Address :- ", signerAddress);
     const transaction = {
-      from : signerAddress,
+      from: signerAddress,
       data: bytecode, // Contract bytecode
       // Optional parameters like `value` or `nonce`
     };
@@ -75,8 +73,9 @@ const deployContract = async () => {
     const txResponse = await signer.sendTransaction(transaction);
     console.log("Transaction hash:", txResponse.hash);
     const receipt = await txResponse.wait();
+    console.log(receipt);
     console.log("Contract deployed at:", receipt.contractAddress);
-    ContractAddress = receipt.contractAddress
+    ContractAddress = receipt.contractAddress;
 
     // contract = new ethers.ContractFactory(ContractAbi, bytecode, signer);
     // deployedContract = await contract.deploy();
@@ -125,7 +124,7 @@ const checkBalance = async () => {
     let Final = String(intData); // Convert integer to string
 
     let finalized = ethers.formatEther(Final); // Convert Wei to Ether
-    console.log(finalized);
+    console.log(finalized, " ETH");
   }
 };
 
@@ -136,33 +135,60 @@ const getFunders = async () => {
     let tx = await signer.call({
       fron: signerAddress,
       to: ContractAddress,
-      data: interface.encodeFunctionData("retrieveInfo",[1])
-    })
-    let data = interface.decodeFunctionResult("retrieveInfo",tx)
-    let amount = String(data[1])
-    let ethAmount = ethers.formatEther(amount)
-    console.log("Name is :- ",data[0])
-    console.log("Amount is  :- ",ethAmount, " ETH")
-    console.log("Contributor ID is :- ",data[2])
-    
-    fId.innerHTML = data[0]
-    fName.innerHTML = data[1]
-    fAmount = data[2]
+      data: interface.encodeFunctionData("retrieveInfo", [funderIndex]),
+    });
+    let data = interface.decodeFunctionResult("retrieveInfo", tx);
+    let amount = String(data[1]);
+    let ethAmount = ethers.formatEther(amount);
+    console.log("Name is :- ", data[0]);
+    console.log("Amount is  :- ", ethAmount, " ETH");
+    console.log("Contributor ID is :- ", data[2]);
 
-    displayDiv.appendChild(fId)
-    displayDiv.appendChild(fName)
-    displayDiv.appendChild(fAmount)
-    displayDiv.setAttribute("class","row")
-    displayingArea.appendChild(displayDiv)
- 
+    fId.innerHTML = data[0];
+    fName.innerHTML = data[1];
+    fAmount = data[2];
+
+    displayDiv.setAttribute("class", "row");
+    displayDiv.appendChild(fId);
+    displayDiv.appendChild(fName);
+    displayDiv.appendChild(fAmount);
+    displayingArea.appendChild(displayDiv);
   }
-
 };
 
+const owner = async () => {
+  let signer = await provider.getSigner();
+  let signerAddress = await signer.getAddress();
+  try {
+    let tx = await signer.call({
+      from: signerAddress,
+      to: ContractAddress,
+      data: interface.encodeFunctionData("getOwner"),
+    });
+    let data = interface.decodeFunctionResult("getOwner", tx);
+    console.log(data);
+  } catch (error) {
+    console.log(error);
+  }
+};
 
+const transfer = async () => {
+  let signer = await provider.getSigner();
+  let signerAddress = await signer.getAddress();
+  try {
+    let tx = await signer.sendTransaction({
+      from: signerAddress,
+      to: contractAddress,
+      data: interface.encodeFunctionData("transfer"),
+    });
 
-
-
+    await tx.wait(2);
+    console.log(tx);
+    console.log("Amount transfered to owner");
+  } catch (error) {
+    console.log(error);
+  }
+};
 
 
 // Event listeners
@@ -170,6 +196,6 @@ connectBtn.onclick = connect;
 fundBtn.onclick = sendFund;
 balanceBtn.onclick = checkBalance;
 contractBtn.onclick = deployContract;
-displayBtn.onclick = getFunders ;
-// transferBtn.onclick = displayName;
-// ownerBtn.onclick = checkOwner;
+displayBtn.onclick = getFunders;
+transferBtn.onclick = transfer;
+ownerBtn.onclick = owner;
