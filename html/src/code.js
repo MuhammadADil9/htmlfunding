@@ -14,15 +14,10 @@ let userName = document.getElementById("user_Name");
 let indexInput = document.getElementById("funders");
 let Eth_value;
 let displayingArea = document.getElementById("display-area");
-let displayDiv = document.createElement("div");
-let fId = document.createElement("p");
-let fName = document.createElement("div");
-let fAmount = document.createElement("h3");
 let funderIndex;
 
 amountInput.addEventListener("change", (e) => {
   Eth_value = e.target.value;
-  console.log(Eth_value);
 });
 
 indexInput.addEventListener("change", (e) => {
@@ -39,14 +34,10 @@ let contractBtn = document.getElementById("getcontract");
 let balanceBtn = document.getElementById("getbalance");
 let ownerBtn = document.getElementById("getowner");
 
-
 let finalName;
 userName.onchange = (e) => {
   finalName = e.target.value;
 };
-
-
-
 
 // Function
 
@@ -56,6 +47,8 @@ const connect = async () => {
     signers = await provider.send("eth_accounts");
     console.log("Addresses within wallet are :- ");
     console.log(signers);
+  } else {
+    console.log("Provider is already available");
   }
 };
 
@@ -64,23 +57,24 @@ const deployContract = async () => {
     let signer = await provider.getSigner();
     let signerAddress = await signer.getAddress();
     console.log("Deployer Address :- ", signerAddress);
-    const transaction = {
-      from: signerAddress,
-      data: bytecode, // Contract bytecode
-      // Optional parameters like `value` or `nonce`
-    };
 
-    const txResponse = await signer.sendTransaction(transaction);
-    console.log("Transaction hash:", txResponse.hash);
-    const receipt = await txResponse.wait();
-    console.log(receipt);
-    console.log("Contract deployed at:", receipt.contractAddress);
-    ContractAddress = receipt.contractAddress;
+    try {
+      const transaction = {
+        from: signerAddress,
+        data: bytecode, // Contract bytecode
+      };
 
-    // contract = new ethers.ContractFactory(ContractAbi, bytecode, signer);
-    // deployedContract = await contract.deploy();
-    // ContractAddress = await deployedContract.getAddress();
-    // console.log(ContractAddress);
+      const txResponse = await signer.sendTransaction(transaction);
+      console.log("Transaction hash:", txResponse.hash);
+      const receipt = await txResponse.wait();
+      console.log(receipt);
+      console.log("Contract deployed at:", receipt.contractAddress);
+      ContractAddress = receipt.contractAddress;
+    } catch (error) {
+      console.log(error);
+    }
+  } else {
+    console.log("Connrect to provider First !!");
   }
 };
 
@@ -89,23 +83,33 @@ const sendFund = async () => {
   if (provider) {
     let signer = await provider.getSigner();
     let signerAddress = await signer.getAddress();
-    const tx = await signer.sendTransaction({
-      from: signerAddress,
-      to: ContractAddress,
-      value: ethers.parseUnits(Eth_value, "ether"),
-      data: interface.encodeFunctionData("fundFunction", [finalName]),
-    });
 
-    const intervalId = setInterval(() => {
-      if (!bool) {
-        console.log("Waiting for confirmation");
-      }
-    }, 1200);
+    try {
+      const tx = await signer.sendTransaction({
+        from: signerAddress,
+        to: ContractAddress,
+        value: ethers.parseUnits(Eth_value, "ether"),
+        data: interface.encodeFunctionData("fundFunction", [finalName]),
+      });
 
-    await tx.wait(2);
-    bool = true;
-    clearInterval(intervalId);
-    console.log("funded ", ethers.formatEther(tx.value), " ETH");
+      userName.value = "";
+      amountInput.value = "0";
+
+      const intervalId = setInterval(() => {
+        if (!bool) {
+          console.log("Waiting for confirmation");
+        }
+      }, 1200);
+
+      await tx.wait(2);
+      bool = true;
+      clearInterval(intervalId);
+      console.log("funded ", ethers.formatEther(tx.value), " ETH");
+    } catch (error) {
+      console.log(error);
+    }
+  } else {
+    console.log("Connrect to provider First !!");
   }
 };
 
@@ -113,52 +117,81 @@ const checkBalance = async () => {
   if (provider) {
     let signer = await provider.getSigner();
     let signerAddress = await signer.getAddress();
-    let tx = await signer.call({
-      fron: signerAddress,
-      to: ContractAddress,
-      data: interface.encodeFunctionData("getBalance"),
-    });
-    let data = await tx.slice(2);
-    console.log(data);
-    let intData = parseInt(data.toString(), 16);
-    let Final = String(intData); // Convert integer to string
 
-    let finalized = ethers.formatEther(Final); // Convert Wei to Ether
-    console.log(finalized, " ETH");
+    try {
+      let tx = await signer.call({
+        fron: signerAddress,
+        to: ContractAddress,
+        data: interface.encodeFunctionData("getBalance"),
+      });
+
+      let data = await tx.slice(2);
+      console.log(data);
+      let intData = parseInt(data.toString(), 16);
+      let Final = String(intData); // Convert integer to string
+
+      let finalized = ethers.formatEther(Final); // Convert Wei to Ether
+      console.log(finalized, " ETH");
+    } catch (error) {
+      console.log(error);
+    }
+  } else {
+    console.log("Connrect to provider First !!");
   }
+};
+
+const append = (id, name, amount) => {
+  let displayDiv = document.createElement("div");
+  let fId = document.createElement("p");
+  let fName = document.createElement("div");
+  let fAmount = document.createElement("h3");
+
+  fId.innerHTML = id;
+  fName.innerHTML = name;
+  fAmount.innerHTML = amount;
+
+  fId.setAttribute("class", "column id");
+  fName.setAttribute("class", "column name");
+  fAmount.setAttribute("class", "column amount");
+  displayDiv.setAttribute("class", "row");
+
+  displayDiv.appendChild(fId);
+  displayDiv.appendChild(fName);
+  displayDiv.appendChild(fAmount);
+  displayingArea.appendChild(displayDiv);
 };
 
 const getFunders = async () => {
   if (provider) {
     let signer = await provider.getSigner();
     let signerAddress = await signer.getAddress();
-    let tx = await signer.call({
-      fron: signerAddress,
-      to: ContractAddress,
-      data: interface.encodeFunctionData("retrieveInfo", [funderIndex]),
-    });
-    let data = interface.decodeFunctionResult("retrieveInfo", tx);
-    let amount = String(data[1]);
-    let ethAmount = ethers.formatEther(amount);
-    console.log("Name is :- ", data[0]);
-    console.log("Amount is  :- ", ethAmount, " ETH");
-    console.log("Contributor ID is :- ", data[2]);
 
-    fId.innerHTML = data[0];
-    fName.innerHTML = data[1];
-    fAmount = data[2];
+    try {
+      let tx = await signer.call({
+        fron: signerAddress,
+        to: ContractAddress,
+        data: interface.encodeFunctionData("retrieveInfo", [funderIndex]),
+      });
 
-    displayDiv.setAttribute("class", "row");
-    displayDiv.appendChild(fId);
-    displayDiv.appendChild(fName);
-    displayDiv.appendChild(fAmount);
-    displayingArea.appendChild(displayDiv);
+      let data = interface.decodeFunctionResult("retrieveInfo", tx);
+      let amount = String(data[1]);
+      let ethAmount = ethers.formatEther(amount);
+
+      console.log("Name is :- ", data[0]);
+      console.log("Amount is  :- ", ethAmount, " ETH");
+      console.log("Contributor ID is :- ", data[2]);
+
+      append(data[2], data[0], ethAmount);
+    } catch (error) {
+      console.log(error);
+    }
   }
 };
 
 const owner = async () => {
   let signer = await provider.getSigner();
   let signerAddress = await signer.getAddress();
+
   try {
     let tx = await signer.call({
       from: signerAddress,
@@ -166,7 +199,7 @@ const owner = async () => {
       data: interface.encodeFunctionData("getOwner"),
     });
     let data = interface.decodeFunctionResult("getOwner", tx);
-    console.log(data);
+    console.log("Deployer Address :-  ", data[0]);
   } catch (error) {
     console.log(error);
   }
@@ -178,7 +211,7 @@ const transfer = async () => {
   try {
     let tx = await signer.sendTransaction({
       from: signerAddress,
-      to: contractAddress,
+      to: ContractAddress,
       data: interface.encodeFunctionData("transfer"),
     });
 
@@ -189,7 +222,6 @@ const transfer = async () => {
     console.log(error);
   }
 };
-
 
 // Event listeners
 connectBtn.onclick = connect;
